@@ -9,16 +9,21 @@ dimensionsZ = size(Z); %[mZ,nZ] (mZ <= nZ)
 wVector = ones(1,min(dimensionsZ)); %vector of ones of length mZ
 W = diag(wVector); %initial matrix W - mZ*mZ (main diagonal = 1)
 
+clippedIndexes = or(clippedIndexesLow, clippedIndexesHigh); %union of indexes
+% gradientMask = clippedIndexes; % Mask in order to have zeroes on the unclipped samples in the gradient
+gradientMask = generateHankelMatrix(clippedIndexes);
+
 fGamma = fGammaEvaluate(W,Z,gamma); %function to minimize w.r.t. W and Z
 fGammaValues = [fGamma];
 
 epsilon = 1e-8;
 counter = 0;
+maxIterations = 100;
 while 1
     if all(Z(:) == 0)
         break
     end
-    if counter > 1000
+    if counter > maxIterations
         break
     end
 %     if length(fGammaValues)>1
@@ -40,19 +45,16 @@ while 1
     
     fGammaValues = [fGammaValues fGammaEvaluate(W,Z,gamma)];  %record the value
     
-%     dZ = 2*W*transpose(W)*Z;
     dZ = transpose(Z)*(W*transpose(W) + gamma*epsilon*eye());
-    %    fZ = (-1)*calculateProjectionZ(dZ, clippedIndexesLow, clippedIndexesHigh, clippingThreshold);
-    %step 7 of algorithm2 has been ignored.
-    fZ = calculateProjectionZ(dZ);
+    fZ = dZ .* gradientMask;
+    fZ = calculateProjectionZ(fZ);
     alphaZ = ((-1)*trace(transpose(fZ)*dZ))/(2*(norm(transpose(fZ)*W,'fro')^2)); 
-    %     alphaZ = ((-1)*norm(fZ,'fro')^2)/fGammaEvaluate(sqrt(epsilon)*fZ, transpose(fZ), gamma) + 0.0001;
     Z = Z + alphaZ*fZ;
     Z = applyClippingConstraint(Z, clippedIndexesLow, clippedIndexesHigh, clippingThreshold);
-%     fZ = (-1)*C_projection_mat;
+    gamma = gamma / eta; %gamma = max(gamma/eta,gamma_min);
+    
     fGammaValues = [fGammaValues fGammaEvaluate(W,Z,gamma)];  %record the value
     
-    gamma = gamma / eta;
     counter = counter + 1;
 end
 lowRankZ = Z;
