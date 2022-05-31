@@ -11,9 +11,9 @@ if winType == 'hann'
 %     window = hann(winLen);
       synthesisWindow = fftshift(firwin('hann',winLen));
 end
-
 %check whether the windows are dual and get the scaling factor
 [scal,residual] = gabdualnorm(analysisWindow,synthesisWindow,hopSize,winLen);
+scal = real(scal); %Quick fix
 if residual > 10e-10
     error('Analysis and Synthesis windows are probably not dual!')
 end

@@ -1,8 +1,8 @@
 function [lowThreshold, highThreshold, clippedIndexesLow, clippedIndexesHigh] = extractClippingLevel(signal)
     lowThreshold = min(signal);
     highThreshold = max(signal);
-    clippedIndexesLow  = (signal == highThreshold);
-    clippedIndexesHigh = (signal == lowThreshold);
+    clippedIndexesLow  = (signal == lowThreshold);
+    clippedIndexesHigh = (signal == highThreshold);
 end
 %     filename_list = ["a08_violin", "a16_clarinet", "a18_bassoon", "a25_harp", "a35_glockenspiel", ...
 %                      "a41_celesta", "a42_accordion", "a58_guitar_sarasate", "a60_piano_schubert",  ...

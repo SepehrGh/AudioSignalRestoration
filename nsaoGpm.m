@@ -15,10 +15,10 @@ gradientMask = generateHankelMatrix(clippedIndexes);
 
 fGamma = fGammaEvaluate(W,Z,gamma); %function to minimize w.r.t. W and Z
 fGammaValues = [fGamma];
-
+gamma_min =1e-7;
 epsilon = 1e-8;
 counter = 0;
-maxIterations = 100;
+maxIterations = 200;
 while 1
     if all(Z(:) == 0)
         break
@@ -51,10 +51,9 @@ while 1
     alphaZ = ((-1)*trace(transpose(fZ)*dZ))/(2*(norm(transpose(fZ)*W,'fro')^2)); 
     Z = Z + alphaZ*fZ;
     Z = applyClippingConstraint(Z, clippedIndexesLow, clippedIndexesHigh, clippingThreshold);
-    gamma = gamma / eta; %gamma = max(gamma/eta,gamma_min);
-    
     fGammaValues = [fGammaValues fGammaEvaluate(W,Z,gamma)];  %record the value
-    
+    gamma = max(gamma/eta,gamma_min);
+%     gamma = gamma/eta;
     counter = counter + 1;
 end
 lowRankZ = Z;

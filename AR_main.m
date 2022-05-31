@@ -21,8 +21,9 @@ clc
 resultsDir = "Declipped\";
 mkdir(resultsDir)
 
-filenameList = ["a08_violin"];
-%"a42_accordion", "bassoon", "a18_bassoon", "a41_celesta", "a16_clarinet", "a35_glockenspiel", 
+hankelSize = 251; %(HS= 251 window size: 501, hop size: 167) || (HS=500 winSize = 999, hopSize = 333) 
+filenameList = ["a35_glockenspiel"]; %"a08_violin", 
+%"a42_accordion", "bassoon", "a18_bassoon", "a41_celesta", "a16_clarinet", ,"a60_piano_schubert", "a58_guitar_sarasate", "a16_clarinet", "a42_accordion" 
 %"a58_guitar_sarasate", "a25_harp", "a60_piano_schubert", "a08_violin", "a66_wind_ensemble_stravinsky"
 for i=1:length(filenameList)
     filename = filenameList(i);
@@ -31,7 +32,7 @@ for i=1:length(filenameList)
         + filename + ".wav";
     [originalSignal,~] = audioread(originalDir);
     %% Loop on inputSDR values
-    inputSdrList = ["05"]; %"01dB", "03dB", "07dB", "10dB", "15dB", "20dB"
+    inputSdrList = ["20"]; % , "07", "10", "15", "20" %"01dB", "03dB", "07dB", "10dB", "15dB", "20dB"
     for j=1:length(inputSdrList)
         inputSdr = inputSdrList(j);
         finalPath = resultsDir + inputSdr + "dB\";
@@ -52,11 +53,11 @@ for i=1:length(filenameList)
         initialClippedIndexes = or(clippedIndexesLow, clippedIndexesHigh); %union of indexes
 
         %% Plot
-        figure;
+%         figure;
 %         time-domain signals
-        plot([originalSignal clippedSignal]);
-        title('Input signal and its clipped version');
-        xlabel('time (samples)');
+%         plot([originalSignal clippedSignal]);
+%         title('Input signal and its clipped version');
+%         xlabel('time (samples)');
 
         %and mark clipped samples
     %     hold on
@@ -79,9 +80,9 @@ for i=1:length(filenameList)
 
         %% Applying Analysis Window
         windowType = 'rect';  %window type
-        windowLength = 99;  %only odd lengths allowed; otherwise Hankel matrices could not be formed
+        windowLength = 2*hankelSize-1; %hankelsize 251 %99;  %only odd lengths allowed; otherwise Hankel matrices could not be formed
         % overlap = 22;
-        hopSize = 33;   %time step (hop size) of the window
+        hopSize = windowLength/3;   %time step (hop size) of the window
 
         %extend signal to make it suitable for analysis
         [extClippedSignal, numOfAddedSamples] = ...
@@ -106,14 +107,14 @@ for i=1:length(filenameList)
         chunksClippedIndicesHigh = logical(chunksClippedIndicesHigh);
         clippedIndexes = or(clippedIndexesLow, clippedIndexesHigh); %union of indexes
         waithandle = waitbar(0,'calculating now');
-        for s = 1:100 %totalNumOfWindows
+        for s = 1:totalNumOfWindows %totalNumOfWindows
             if (all(chunksClippedIndicesLow(:,s) == 0) && all(chunksClippedIndicesHigh(:,s) == 0)) %if there is no clipped sample in chunk, skip chunk entirely
                 lowRankChunks(:,s) = chunks(:,s);
                 continue
             end
             Z = generateHankelMatrix(chunks(:,s));
             [lowRankZ, fGammaValues] = ...
-                nsaoGpm(Z, 0.01, 1, chunksClippedIndicesLow(:,s), chunksClippedIndicesHigh(:,s), clippingThreshold);
+                nsaoGpm(Z, 0.01, 1.1, chunksClippedIndicesLow(:,s), chunksClippedIndicesHigh(:,s), clippingThreshold);
             %gamma = 10^(-2), eta = 1 (previously 1.1)
             firstCol = lowRankZ(:,1);
             lastRow = lowRankZ(end,2:end);
@@ -121,7 +122,8 @@ for i=1:length(filenameList)
             fGammaValuesRecords{s} = fGammaValues;  %store the current values
             progress = s/totalNumOfWindows;
             waitbar(progress,waithandle);
-            disp(progress*100);
+%             fprintf("Window %d of %d, progress: %.2f\n", s, totalNumOfWindows, progress*100);
+%             disp(progress*100);
         end
         close(waithandle)
         %% Applying Synthesis Window
@@ -140,8 +142,10 @@ for i=1:length(filenameList)
         % synthSignal = synthSignal .* scalingFactor;
 
         %% SDRc
+        disp(filename);
+        disp(inputSdr);
         deltaSDRc = sdrC(originalSignal, finalSignal, initialClippedIndexes) - sdrC(originalSignal, clippedSignal, initialClippedIndexes)
-
+    
         %% Write result
     %     dir = "C:\Users\Sepehr\Desktop\Audio Restoration\newImpl (21.3.22)\declipped\05dB\" + filename + "\";
     %     writeFilename = dir + "clipped_CL_" + clippingThreshold + ".wav";
@@ -149,7 +153,6 @@ for i=1:length(filenameList)
     %     writeFilename = dir + "CL_" + clippingThreshold + "_HS_" + windowLength +  ".wav";
     %     audiowrite(writeFilename, finalSignal, Fs);
 
-        hankelSize = (windowLength+1)/2;
         writeFilename = finalPath + filename + "_HankelSize_" + hankelSize +  ".wav";
         audiowrite(writeFilename, finalSignal, Fs);
         %% Plots
@@ -190,11 +193,11 @@ for i=1:length(filenameList)
         title('Difference between original and recovered signals')
         axis tight
 
-        figure
-        for s = 1:totalNumOfWindows
-            plot(fGammaValuesRecords{s})
-            hold on
-        end
-        title('Value of the objective function during half-iterations')
+%         figure
+%         for s = 1:totalNumOfWindows
+%             plot(fGammaValuesRecords{s})
+%             hold on
+%         end
+%         title('Value of the objective function during half-iterations')
     end
 end
